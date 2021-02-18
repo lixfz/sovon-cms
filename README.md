@@ -1,1 +1,1 @@
-# This is a simple content management system for sovon.net website.
+# This is a simple content management system for sovon.net web site.
