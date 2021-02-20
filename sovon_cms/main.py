@@ -13,14 +13,15 @@ from sovon_cms.version import __version__
 module_name = str(path.basename(__file__)).split('.')[0]
 logger = logging.getLogger(module_name)
 
-MAX_INDEX = 999999
+MAX_INDEX = int(1e10)
 
 MARKDOWN_EXTENSIONS = ['markdown.extensions.extra',
                        # 'markdown.extensions.codehilite',
                        'markdown.extensions.tables',
                        'markdown.extensions.toc']
 
-MARKDOWN_TEMPLATE = r'markdown.html'
+MARKDOWN_TEMPLATE = '_markdown.html'
+INDEX_TEMPLATE = '_index.html'
 
 
 def parse_file_name(file_name):
@@ -99,32 +100,63 @@ class Document(object):
 
 
 class Category(object):
-    def __init__(self, dir_path, index=None, title=None):
+    def __init__(self, dir_path, index=None, title=None, parent=None):
         self.dir_path = dir_path
 
         if index is None and title is None:
-            _dir, file_name = path.split(dir_path)
-            self.index, self.title = parse_file_name(file_name)
+            _, category_dir = path.split(dir_path)
+            self.index, self.title = parse_file_name(category_dir)
         else:
             self.index = index
             self.title = title
 
-        markdown_template = path.join(dir_path, MARKDOWN_TEMPLATE)
-        self.markdown_template = markdown_template if path.exists(markdown_template) else None
+        document_template = path.join(dir_path, MARKDOWN_TEMPLATE)
+        index_template = path.join(dir_path, INDEX_TEMPLATE)
+
+        if parent is not None:
+            self.document_template = document_template if path.exists(document_template) \
+                else parent.document_template
+            self.index_template = index_template if path.exists(index_template) \
+                else parent.index_template
+        else:
+            self.document_template = document_template if path.exists(document_template) else None
+            self.index_template = index_template if path.exists(index_template) else None
+
+        self.parent = parent
+
+        self.documents_ = None
+        self.children_ = None
+
+    @property
+    def uri(self):
+        _, category_dir = path.split(self.dir_path)
+        if self.parent is not None:
+            return f'{self.parent.uri}/{category_dir}'
+        else:
+            return ''
 
     @property
     def documents(self) -> list:
-        sub_dirs = [path.join(self.dir_path, p) for p in os.listdir(self.dir_path)]
-        sub_dirs = filter(lambda p: path.isfile(p) and p != self.markdown_template, sub_dirs)
+        if self.documents_ is None:
+            sub_dirs = [path.join(self.dir_path, p) for p in os.listdir(self.dir_path)
+                        if p not in {INDEX_TEMPLATE, MARKDOWN_TEMPLATE}]
+            sub_dirs = filter(path.isfile, sub_dirs)
+            self.documents_ = list(map(Document, sub_dirs))
 
-        return list(map(Document, sub_dirs))
+        return self.documents_
 
     @property
     def children(self) -> list:
-        sub_dirs = [path.join(self.dir_path, p) for p in os.listdir(self.dir_path)]
-        sub_dirs = filter(path.isdir, sub_dirs)
+        if self.children_ is None:
+            sub_dirs = [path.join(self.dir_path, p) for p in os.listdir(self.dir_path)]
+            sub_dirs = filter(path.isdir, sub_dirs)
+            self.children_ = [Category(sub, parent=self) for sub in sub_dirs]
 
-        return list(map(Category, sub_dirs))
+        return self.children_
+
+    @property
+    def has_html(self):
+        return any(doc.is_markdown or doc.is_html for doc in self.documents)
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}(index={self.index}, title="{self.title}")'
@@ -142,39 +174,47 @@ def render_site(root_dir, output_dir):
 
     logger.info(f'render site from "{root_dir}" to "{output_dir}"')
     root = Category(root_dir, 0, 'ROOT')
-    render_category(root, output_dir)
+    render_category(root, root, output_dir)
     logger.info('done')
 
 
-def render_category(category: Category, output_dir: str):
+def render_category(root: Category, category: Category, output_dir: str):
     if not path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
 
     children = category.children
     documents = category.documents
-    markdown_template = category.markdown_template
+    index_template = category.index_template
+    markdown_template = category.document_template
+
+    children_with_html = [cat for cat in children if cat.has_html]
     markdown_documents = [doc for doc in documents if doc.is_markdown]
     markdown_documents.sort(key=lambda doc: doc.index if doc.index is not None else MAX_INDEX)
+
+    if index_template is not None and len(markdown_documents) > 0:
+        content = parse_jinja(index_template, documents=markdown_documents, children=children,
+                              root=root, category=category)
+        output_path = path.join(output_dir, 'index.html')
+        write_file(output_path, content)
 
     for document in documents:
         _, file_name = path.split(document.file_path)
         output_path = path.join(output_dir, file_name)
         if document.is_markdown and markdown_template:
             output_path = re.sub(r'\.md$', '.html', output_path)
-            # content = md.markdown(document.content, extensions=MARKDOWN_EXTENSIONS)
-            content = parse_jinja(markdown_template, documents=markdown_documents, children=children,
-                                  document=document, category=category)
+            content = parse_jinja(markdown_template, documents=markdown_documents, children=children_with_html,
+                                  root=root, document=document, category=category)
             write_file(output_path, content)
         elif document.is_html:
-            content = parse_jinja(document.file_path, documents=markdown_documents, children=children,
-                                  category=category)
+            content = parse_jinja(document.file_path, documents=markdown_documents, children=children_with_html,
+                                  root=root, category=category)
             write_file(output_path, content)
         else:
             shutil.copy(document.file_path, output_path)
 
     for child in children:
         _, child_dir = path.split(child.dir_path)
-        render_category(child, path.join(output_dir, child_dir))
+        render_category(root, child, path.join(output_dir, child_dir))
 
 
 def run():
