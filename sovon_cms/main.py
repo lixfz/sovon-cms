@@ -18,8 +18,13 @@ MAX_INDEX = int(1e10)
 MARKDOWN_EXTENSIONS = ['markdown.extensions.extra',
                        # 'markdown.extensions.codehilite',
                        'markdown.extensions.tables',
-                       'markdown.extensions.toc']
-
+                       'markdown.extensions.toc',
+                       'markdown_katex',
+                       ]
+MARKDOWN_EXTENSION_CONFIGS = {'markdown_katex': {'no_inline_svg': True,  # fix for WeasyPrint
+                                                 'insert_fonts_css': True,
+                                                 },
+                              }
 MARKDOWN_TEMPLATE = '_markdown.html'
 INDEX_TEMPLATE = '_index.html'
 
@@ -47,7 +52,7 @@ def write_file(file_path, content):
 
 def parse_markdown(file_path) -> str:
     s = read_file(file_path)
-    r = md.markdown(s, extensions=MARKDOWN_EXTENSIONS)
+    r = md.markdown(s, extensions=MARKDOWN_EXTENSIONS, extension_configs=MARKDOWN_EXTENSION_CONFIGS)
     return r
 
 
