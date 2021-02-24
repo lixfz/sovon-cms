@@ -15,6 +15,8 @@ logger = logging.getLogger(module_name)
 
 MAX_INDEX = int(1e10)
 
+REVERSE_SORT_INDEX = int(1e4)
+
 MARKDOWN_EXTENSIONS = ['markdown.extensions.extra',
                        # 'markdown.extensions.codehilite',
                        'markdown.extensions.tables',
@@ -184,6 +186,8 @@ def render_site(root_dir, output_dir):
 
 
 def render_category(root: Category, category: Category, output_dir: str):
+    logger.info(f'rendering category {category.title}')
+
     if not path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
 
@@ -194,7 +198,9 @@ def render_category(root: Category, category: Category, output_dir: str):
 
     children_with_html = [cat for cat in children if cat.has_html]
     markdown_documents = [doc for doc in documents if doc.is_markdown]
-    markdown_documents.sort(key=lambda doc: doc.index if doc.index is not None else MAX_INDEX)
+    markdown_documents.sort(key=lambda doc: doc.index if doc.index is not None else MAX_INDEX,
+                            reverse=all([doc.index is not None and doc.index > REVERSE_SORT_INDEX
+                                         for doc in markdown_documents]))
 
     if index_template is not None and len(markdown_documents) > 0:
         content = parse_jinja(index_template, documents=markdown_documents, children=children,
