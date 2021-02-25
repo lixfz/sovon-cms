@@ -131,8 +131,10 @@ class Category(object):
 
         self.parent = parent
 
+        # cached items
         self.documents_ = None
         self.children_ = None
+        self.modified_time_ = None
 
     @property
     def uri(self):
@@ -141,6 +143,17 @@ class Category(object):
             return f'{self.parent.uri}/{category_dir}'
         else:
             return ''
+
+    @property
+    def modified_time(self):
+        if self.modified_time_ is None:
+            document_times = [doc.modified_time for doc in self.documents]
+            # children_times = [child.modified_time for child in self.children]
+            # all_times = document_times + children_times
+            all_times = document_times
+            self.modified_time_ = max(all_times) if all_times else os.stat(self.dir_path).st_mtime
+
+        return self.modified_time_
 
     @property
     def documents(self) -> list:
@@ -169,6 +182,10 @@ class Category(object):
         return f'{self.__class__.__name__}(index={self.index}, title="{self.title}")'
 
 
+def is_ready(output_path, time_stamp):
+    return os.path.exists(output_path) and os.stat(output_path).st_mtime > time_stamp
+
+
 def render_site(root_dir, output_dir):
     root_dir = path.abspath(path.expanduser(root_dir))
     output_dir = path.abspath(path.expanduser(output_dir))
@@ -186,7 +203,7 @@ def render_site(root_dir, output_dir):
 
 
 def render_category(root: Category, category: Category, output_dir: str):
-    logger.info(f'rendering category {category.title}')
+    # logger.info(f'[{category.title}] rendering ...')
 
     if not path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
@@ -202,17 +219,27 @@ def render_category(root: Category, category: Category, output_dir: str):
                             reverse=all([doc.index is not None and doc.index > REVERSE_SORT_INDEX
                                          for doc in markdown_documents]))
 
+    counter = 0
     if index_template is not None and len(markdown_documents) > 0:
-        content = parse_jinja(index_template, documents=markdown_documents, children=children,
-                              root=root, category=category)
         output_path = path.join(output_dir, 'index.html')
-        write_file(output_path, content)
+        if not is_ready(output_path, category.modified_time):
+            logger.info(f'updating {output_path}')
+            content = parse_jinja(index_template, documents=markdown_documents, children=children,
+                                  root=root, category=category)
+            write_file(output_path, content)
+            counter += 1
 
     for document in documents:
         _, file_name = path.split(document.file_path)
         output_path = path.join(output_dir, file_name)
         if document.is_markdown and markdown_template:
             output_path = re.sub(r'\.md$', '.html', output_path)
+
+        if is_ready(output_path, category.modified_time):
+            continue  # skip
+
+        logger.info(f'updating {output_path}')
+        if document.is_markdown and markdown_template:
             content = parse_jinja(markdown_template, documents=markdown_documents, children=children_with_html,
                                   root=root, document=document, category=category)
             write_file(output_path, content)
@@ -222,10 +249,16 @@ def render_category(root: Category, category: Category, output_dir: str):
             write_file(output_path, content)
         else:
             shutil.copy(document.file_path, output_path)
+        counter += 1
 
     for child in children:
         _, child_dir = path.split(child.dir_path)
-        render_category(root, child, path.join(output_dir, child_dir))
+        counter += render_category(root, child, path.join(output_dir, child_dir))
+
+    if counter > 0:
+        logger.info(f'[{category.title}] update {counter} documents')
+
+    return counter
 
 
 def run():
