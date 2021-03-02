@@ -266,7 +266,7 @@ def run():
     parser.add_argument('--output-dir', type=str, default='dist',
                         help='')
     parser.add_argument('--version', '-v', action='store_true', default=False)
-    parser.add_argument('--root-dir', type=str, default='.',
+    parser.add_argument('--root-dir', type=str, required=True,
                         help='')
 
     args = parser.parse_args()
