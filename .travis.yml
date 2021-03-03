@@ -12,6 +12,7 @@ install:
   - pip install -q pytest-cov==2.4.0
   - pip install -q python-coveralls
   - pip install -q codacy-coverage
+  - pip install git+https://github.com/DataCanvasIO/tabular-toolbox
 
 script:
   - pytest --cov=sovon_cms
