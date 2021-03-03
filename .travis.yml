@@ -6,8 +6,16 @@ python:
 
 cache: pip
 
+# command to install dependencies
+install:
+  - pip install -r requirements.txt
+  - pip install -q pytest-cov==2.4.0
+  - pip install -q python-coveralls
+  - pip install -q codacy-coverage
+  - pip install .
+
 script:
-  - pytest
+  - pytest --cov=sovon_cms
 
 notifications:
   recipients:
@@ -16,3 +24,7 @@ notifications:
   on_success: change
   on_failure: change
 
+after_success:
+  - coveralls
+  - coverage xml
+  - python-codacy-coverage -r coverage.xml
