@@ -1,3 +1,3 @@
 def test_import():
     from sovon_cms import main
-    print(main.__version__)
+    print('version:', main.__version__)
