@@ -9,6 +9,7 @@ cache: pip
 
 # command to install dependencies
 install:
+  - echo starting
   - set
   - pip install -r requirements.txt
   - pip install -q pytest-cov==2.4.0
