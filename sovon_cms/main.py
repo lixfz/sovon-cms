@@ -169,6 +169,7 @@ class Category(object):
     def children(self) -> list:
         if self.children_ is None:
             sub_dirs = [path.join(self.dir_path, p) for p in os.listdir(self.dir_path)]
+            sub_dirs.sort()
             sub_dirs = filter(path.isdir, sub_dirs)
             self.children_ = [Category(sub, parent=self) for sub in sub_dirs]
 
