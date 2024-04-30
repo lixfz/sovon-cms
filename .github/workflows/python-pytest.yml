@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latestmacos-latest, macos-12]
+        os: [windows-latest, ubuntu-latest, macos-12]
         python-version: ["3.8", "3.11"]
     steps:
     - uses: actions/checkout@v2
@@ -28,7 +28,7 @@ jobs:
         conda env list
         conda list
         pip install  -r requirements.txt
-        pip install -q pytest-cov==2.4.0  python-coveralls  codacy-coverage
+        pip install pytest
         pip list
     - name: Test with pytest
       run: |
