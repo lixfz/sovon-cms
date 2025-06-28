@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-12]
+        os: [windows-latest, ubuntu-latest]
         python-version: ["3.8", "3.11"]
     steps:
     - uses: actions/checkout@v2
@@ -25,8 +25,6 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        conda env list
-        conda list
         pip install  -r requirements.txt
         pip install pytest
         pip list
