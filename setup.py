@@ -51,7 +51,7 @@ def read_extra_requirements():
     return extra
 
 
-MIN_PYTHON_VERSION = '>=3.6.*'
+MIN_PYTHON_VERSION = '>=3.6'
 
 long_description = read_file('README.md')
 requires = read_requirements()
@@ -78,6 +78,8 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         'Topic :: Software Development',
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules',
